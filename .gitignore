@@ -25,6 +25,8 @@ mono_crash.*
 x64/
 x86/
 [Ww][Ii][Nn]32/
+
+# Include all zip files from infrastructure\artifacts
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 [Aa][Rr][Mm]64[Ee][Cc]/
@@ -72,7 +74,7 @@ BenchmarkDotNet.Artifacts/
 # .NET Core
 project.lock.json
 project.fragment.lock.json
-artifacts/
+
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -416,3 +418,22 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+.terraformrc
+terraform.rc
+plan.out
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars.json
+*.backup
+*.log
+*.tfapply
