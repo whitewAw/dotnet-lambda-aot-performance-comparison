@@ -1,8 +1,8 @@
 ﻿# .NET NativeAOT: Performance Revolution
 ## A Deep Dive into AOT vs ReadyToRun vs Regular .NET
 
-<a href="https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md"><img src="https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg" alt="StandWithUkraine" style="max-width: 100%;"></a>
-<a href="https://github.com/whitewAw/dotnet-lambda-aot-performance-comparison"><img src="https://img.shields.io/badge/Developed%20by-Alex%20(Oleksandr)%20Shevchenko-blue.svg" alt="Developed by Alex (Oleksandr) Shevchenko" style="max-width: 100%;"></a>
+[![Stand With Ukraine](https://img.shields.io/badge/Stand_With-Ukraine-FFD500?labelColor=005BBB)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
+[![Developed by](https://img.shields.io/badge/Developed_by-Alex_%28Oleksandr%29_Shevchenko-0066CC?logo=github)](https://github.com/whitewAw)
 
 ---
 
