@@ -1,6 +1,9 @@
 ﻿# .NET NativeAOT: Performance Revolution
 ## A Deep Dive into AOT vs ReadyToRun vs Regular .NET
 
+<a href="https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md"><img src="https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg" alt="StandWithUkraine" style="max-width: 100%;"></a>
+<a href="https://github.com/whitewAw/dotnet-lambda-aot-performance-comparison"><img src="https://img.shields.io/badge/Developed%20by-Alex%20(Oleksandr)%20Shevchenko-blue.svg" alt="Developed by Alex (Oleksandr) Shevchenko" style="max-width: 100%;"></a>
+
 ---
 
 ## 📋 Table of Contents
@@ -864,6 +867,199 @@ AOT .NET 10:         ████████ 42-48 MB ⚡ (LOWEST)
 - Good intermediate step for codebases not ready for AOT constraints
 - Test runs showed R2R variance: first test 104ms avg, second test 94ms avg
 - **Takeaway:** R2R is a viable optimization if AOT's reflection limits are blocking
+
+---
+
+## 🔄 Migration Guide
+
+### Quick Migration Path
+
+**Phase 1: Assessment**
+- Enable trim analyzers: `<EnableTrimAnalyzer>true</EnableTrimAnalyzer>`
+- Identify AOT blockers: reflection, dynamic loading, incompatible libraries
+- Create compatibility matrix
+
+**Phase 2: Code Preparation**
+```csharp
+// Add JSON source generation
+[JsonSerializable(typeof(MyModel))]
+public partial class AppJsonContext : JsonSerializerContext { }
+
+// Use constructor injection
+public MyService(IRepository repo) => _repo = repo;
+
+// Explicit registration (no assembly scanning)
+services.AddSingleton<IService, Service>();
+```
+
+**Phase 3: Pilot Function**
+```xml
+<!-- Update .csproj -->
+<PropertyGroup>
+  <OutputType>Exe</OutputType>
+  <PublishAot>true</PublishAot>
+  <SelfContained>true</SelfContained>
+</PropertyGroup>
+```
+
+**Phase 4: Gradual Rollout**
+- Deploy side-by-side (Regular + AOT)
+- Use Lambda aliases for weighted traffic routing
+- Monitor CloudWatch metrics
+- Gradual shift: 10% → 25% → 50% → 100%
+
+### Common Challenges
+
+**Third-Party Library Issues:**
+- Find AOT-compatible alternatives
+- Isolate incompatible code to separate Lambda
+- Check library roadmap for AOT support
+
+**ReadyToRun as Stepping Stone:**
+```xml
+<!-- 34% faster cold starts, minimal code changes -->
+<PublishReadyToRun>true</PublishReadyToRun>
+<TrimMode>partial</TrimMode>
+```
+
+---
+
+## 🤔 When to Choose Which Approach
+
+### Quick Decision Guide
+
+```
+Need cold start < 1s? ────► AOT
+Traffic > 1M/month? ──────► AOT
+Budget-sensitive? ────────► AOT
+Complex reflection? ──────► Regular or R2R
+Plugin architecture? ─────► Regular
+Rapid prototyping? ───────► Regular
+```
+
+### Use Case Matrix
+
+| Scenario                  | Recommendation | Why                                        |
+|---------------------------|----------------|--------------------------------------------|
+| **User-facing APIs**      | ✅ AOT         | 7× faster cold start, 6× faster warm runs  |
+| **Event processors**      | ✅ AOT         | Frequent cold starts, cost-efficient       |
+| **Scheduled tasks**       | ✅ AOT         | Always cold start, predictable performance |
+| **High volume (>10M/mo)** | ✅ AOT         | 73% cost savings + better UX               |
+| **Plugin systems**        | ✅ Regular     | Requires dynamic assembly loading          |
+| **Heavy ORM (EF Core)**   | ⚠️ Regular/R2R | EF not fully AOT-compatible yet            |
+| **MVPs/Prototypes**       | ✅ Regular     | Fastest iteration, switch later            |
+| **Long-running (>5 min)** | ✅ Regular     | JIT optimization benefits                  |
+| **Migration testing**     | ⚠️ ReadyToRun  | 34% improvement, low risk                  |
+
+### ROI Calculator
+
+```
+At 10M requests/month:
+Regular:  $9.80/mo  | 6.7s cold  | 91ms warm
+AOT:      $2.60/mo  | 940ms cold | 14ms warm
+Savings:  $7.20/mo (73%) + better UX
+```
+
+**When AOT Makes Sense:**
+- Latency-sensitive applications
+- High traffic volume (cost savings compound)
+- Modern .NET features needed (9/10 on Lambda today)
+- Predictable performance required
+
+**When to Stay Regular:**
+- Heavy reflection usage
+- Dynamic plugin architecture
+- Rapid development phase
+- Third-party dependencies not AOT-ready
+
+---
+
+## ❓ FAQ & Troubleshooting
+
+### Top Questions
+
+**Q: Will my code work with AOT?**  
+A: Not automatically. Check for:
+- ❌ `Type.GetType()`, `Activator.CreateInstance()`
+- ❌ Reflection-based JSON serialization
+- ❌ Assembly scanning/dynamic loading
+- ✅ Use source generation and constructor injection
+
+**Q: Can I use Entity Framework?**  
+A: Limited support. Better alternatives:
+- ✅ Dapper (fully AOT-compatible)
+- ✅ ADO.NET (fully compatible)
+- ⚠️ EF Core (partial support, avoid dynamic LINQ)
+
+**Q: Build times too long?**  
+A: AOT builds are 2-5× slower. Optimize with:
+- Docker layer caching
+- Incremental builds for development
+- Parallel CI/CD builds
+
+**Q: Can I mix AOT and Regular?**  
+A: Yes! Common pattern:
+```
+User Request → AOT Lambda (fast API)
+                    ↓ SQS
+              Regular Lambda (complex processing)
+```
+
+### Common Errors
+
+**`IL2026: Requires unreferenced code`**
+```csharp
+// Solution: Use source generation
+[JsonSerializable(typeof(MyClass))]
+public partial class MyJsonContext : JsonSerializerContext { }
+```
+
+**`Could not find 'bootstrap'`**
+```bash
+# Rename binary after publish
+mv MyLambdaFunction bootstrap
+zip -r lambda.zip bootstrap
+```
+
+**Cold start still slow (>2s)**
+```yaml
+# Check: VPC adds 3-10s!
+VpcConfig: !Ref AWS::NoValue  # Remove if not needed
+```
+
+**Warm execution slow**
+```csharp
+// Reuse AWS clients (don't create each request)
+private static readonly IAmazonDynamoDB _client = new AmazonDynamoDBClient();
+```
+
+### Performance Troubleshooting
+
+**Verify AOT is enabled:**
+```bash
+# Should see single ~5-6MB 'bootstrap' file
+ls -lh bin/Release/net9.0/linux-x64/publish/
+```
+
+**Add detailed logging:**
+```csharp
+context.Logger.LogInformation($"DI: {sw.ElapsedMilliseconds}ms");
+context.Logger.LogInformation($"Logic: {sw.ElapsedMilliseconds}ms");
+context.Logger.LogInformation($"AWS API: {sw.ElapsedMilliseconds}ms");
+```
+
+### Getting Help
+
+**Resources:**
+- [.NET AOT Discussions](https://github.com/dotnet/runtime/discussions/categories/native-aot)
+- [AWS Lambda .NET Issues](https://github.com/aws/aws-lambda-dotnet/issues)
+- [This Repo Issues](https://github.com/whitewAw/dotnet-lambda-aot-performance-comparison/issues)
+
+**Include when posting:**
+- `.csproj` configuration
+- Full build warnings
+- CloudWatch logs
+- Minimal reproduction code
 
 ---
 
